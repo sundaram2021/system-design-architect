@@ -20,7 +20,7 @@ export function ValidationProgress({ status, feedback, title, attempt = 1 }: Val
     ]);
     const [isExpanded, setIsExpanded] = useState(false);
 
-    // Simulate the checklist animation when entering "validating" state
+    // checklist animation when entering "validating" state
     useEffect(() => {
         if (status === "validating") {
             let timeout: NodeJS.Timeout | undefined;
@@ -30,7 +30,7 @@ export function ValidationProgress({ status, feedback, title, attempt = 1 }: Val
 
                 for (let i = 0; i < 4; i++) {
                     setChecks(prev => prev.map((c, idx) => idx === i ? { ...c, status: "checking" } : c));
-                    await new Promise(r => setTimeout(r, 600)); // Simulate check time
+                    await new Promise(r => setTimeout(r, 600)); 
                     setChecks(prev => prev.map((c, idx) => idx === i ? { ...c, status: "done" } : c));
                 }
             };

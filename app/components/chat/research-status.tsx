@@ -4,7 +4,7 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { VscLoading, VscChevronDown, VscLinkExternal } from "react-icons/vsc";
 import { HiOutlineSearchCircle } from "react-icons/hi";
-import type { ResearchSource } from "@/app/lib/schemas";
+import type { ResearchSource } from "@/app/lib/schemas/message";
 
 interface ResearchStatusProps {
     query: string;

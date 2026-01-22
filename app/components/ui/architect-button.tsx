@@ -8,14 +8,16 @@ function cn(...inputs: ClassValue[]) {
     return twMerge(clsx(inputs));
 }
 
-interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+type ButtonProps = {
     isLoading?: boolean;
     icon?: React.ReactNode;
-}
+    ref?: React.Ref<HTMLButtonElement>;
+} & React.ComponentPropsWithoutRef<"button">;
 
-export function ArchitectButton({ className, children, isLoading, icon, ...props }: ButtonProps) {
+export function ArchitectButton({ className, children, isLoading, icon, ref, ...props }: ButtonProps) {
     return (
         <button
+            ref={ref}
             className={cn(
                 "relative flex items-center justify-center p-3 bg-accent text-background rounded-lg hover:bg-accent/90 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed group",
                 className

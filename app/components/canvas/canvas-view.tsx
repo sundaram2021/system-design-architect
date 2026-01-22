@@ -16,7 +16,7 @@ import {
 import "@xyflow/react/dist/style.css";
 import { ArchitectureNode } from "./architecture-node";
 import { ArchitectureEdge } from "./architecture-edge";
-import type { CanvasNode, CanvasEdge } from "@/app/lib/schemas";
+import type { CanvasNode, CanvasEdge } from "@/app/lib/schemas/canvas";
 
 interface CanvasViewProps {
     initialNodes: CanvasNode[];

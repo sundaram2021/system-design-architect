@@ -7,12 +7,15 @@ function cn(...inputs: ClassValue[]) {
     return twMerge(clsx(inputs));
 }
 
-interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> { }
+type InputProps = {
+    ref?: React.Ref<HTMLInputElement>;
+} & React.ComponentPropsWithoutRef<"input">;
 
-export function ArchitectInput({ className, ...props }: InputProps) {
+export function ArchitectInput({ className, ref, ...props }: InputProps) {
     return (
         <div className="relative group">
             <input
+                ref={ref}
                 className={cn(
                     "w-full bg-black/40 border border-border text-foreground px-4 py-3 text-sm focus:outline-none focus:border-accent/50 transition-all duration-300 rounded-lg placeholder:text-foreground/20",
                     className

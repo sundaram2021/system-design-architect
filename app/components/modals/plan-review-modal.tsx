@@ -2,7 +2,7 @@
 
 import { motion, AnimatePresence } from "framer-motion";
 import { VscClose, VscCheck } from "react-icons/vsc";
-import type { Plan } from "@/app/lib/schemas";
+import type { Plan } from "@/app/lib/schemas/message";
 
 interface PlanReviewModalProps {
     plan: Plan;

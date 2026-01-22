@@ -1,11 +1,8 @@
 import { generateWithGemini } from "../services/gemini-service";
 import { AGENT_C_SYSTEM_PROMPT } from "./prompts";
-import { 
-  AgentCCanvasResponseSchema, 
-  type Plan,
-  type CanvasNode,
-  type CanvasEdge
-} from "../schemas";
+import { AgentCCanvasResponseSchema } from "../schemas/agent-responses";
+import type { Plan } from "../schemas/message";
+import type { CanvasNode, CanvasEdge } from "../schemas/canvas";
 
 export interface CanvasResult {
   title: string;

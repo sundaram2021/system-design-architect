@@ -1,7 +1,7 @@
 "use client";
 
 import { memo } from "react";
-import { Handle, Position, type NodeProps } from "@xyflow/react";
+import { Handle, Position, type NodeProps, type Node } from "@xyflow/react";
 import {
     FaReact,
     FaServer,
@@ -35,14 +35,16 @@ const typeColors: Record<string, string> = {
     external: "from-amber-300/20 to-amber-400/10 border-amber-300/40"
 };
 
-interface ArchitectureNodeData {
+interface ArchitectureNodeData extends Record<string, unknown> {
     label: string;
     icon: string;
     nodeType: string;
 }
 
-function ArchitectureNodeComponent({ data }: NodeProps) {
-    const nodeData = data as unknown as ArchitectureNodeData;
+type ArchitectureNode = Node<ArchitectureNodeData>;
+
+function ArchitectureNodeComponent({ data }: NodeProps<ArchitectureNode>) {
+    const nodeData = data;
     const IconComponent = iconMap[nodeData.icon] || FaCog;
     const colorClass = typeColors[nodeData.nodeType] || typeColors.service;
 

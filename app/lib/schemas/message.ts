@@ -61,7 +61,8 @@ export const QuestionMessageSchema = BaseMessageSchema.extend({
   question: z.string(),
   options: z.array(QuestionOptionSchema),
   allowCustom: z.boolean(),
-  allowMultiple: z.boolean().optional()
+  allowMultiple: z.boolean().optional(),
+  answered: z.boolean().optional()
 });
 
 export const PlanComponentSchema = z.object({

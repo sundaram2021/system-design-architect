@@ -1,7 +1,7 @@
 import { searchAndSummarize } from "../services/exa-service";
 import { generateWithGemini } from "../services/gemini-service";
 import { AGENT_A_SUMMARY_PROMPT } from "./prompts";
-import { AgentAResearchResultSchema, type AgentAResearchResult } from "../schemas";
+import { AgentAResearchResultSchema, type AgentAResearchResult } from "../schemas/agent-responses";
 
 export async function performResearch(
   query: string,

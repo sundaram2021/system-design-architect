@@ -1,11 +1,7 @@
 import { generateWithGemini } from "../services/gemini-service";
 import { AGENT_B_SYSTEM_PROMPT } from "./prompts";
-import { 
-  AgentBResponseSchema, 
-  type AgentBResponse,
-  type Message,
-  type AgentAResearchResult
-} from "../schemas";
+import { AgentBResponseSchema, type AgentBResponse, type AgentAResearchResult } from "../schemas/agent-responses";
+import type { Message } from "../schemas/message";
 
 interface ConversationContext {
   messages: Message[];
@@ -79,7 +75,8 @@ function countQuestionsInConversation(messages: Message[]): number {
 
 export async function orchestrate(
   userMessage: string,
-  context: ConversationContext
+  context: ConversationContext,
+  phase: "initial_design" | "follow_up" = "initial_design"
 ): Promise<AgentBResponse> {
   const conversationHistory = buildConversationHistory(context);
   const questionCount = countQuestionsInConversation(context.messages);
@@ -87,34 +84,34 @@ export async function orchestrate(
   const hasFeedback = context.messages.some(m => m.type === "system" && m.content.includes("FEEDBACK"));
 
   let instruction = "";
-  
+  const minQuestions = phase === "initial_design" ? 4 : 1;
+  const maxQuestions = 5;
+
   // If we have validator feedback, skip questions entirely and fix the plan
   if (hasFeedback && hasResearch) {
     instruction = "You have received VALIDATOR FEEDBACK. Do NOT ask questions. Fix the plan immediately based on the feedback and generate an updated plan.";
   } else if (hasResearch) {
     // We have research data - generate the plan
     instruction = "You have research data. NOW generate the comprehensive architectural plan using the research recommendations. Do NOT ask more questions.";
-  } else if (questionCount >= 4) {
-    // Asked 4 questions already (max limit) - proceed to research
-    instruction = "You have asked the maximum number of questions. Now proceed to request research for technology decisions. Return research_needed type.";
-  } else if (questionCount >= 1) {
-    // Asked at least 1 question - can ask more (up to 4) OR proceed to research
-    instruction = `You have asked ${questionCount} question(s). You can either:
-1. Ask ONE more relevant follow-up question about functional requirements (max 4 total)
+  } else if (questionCount >= maxQuestions) {
+    // Asked 5 questions already (max limit) - proceed to research
+    instruction = "You have asked the maximum number of questions (5). Now proceed to request research for technology decisions. Return research_needed type.";
+  } else if (questionCount < minQuestions) {
+    // Below minimum - MUST ask more questions
+    const questionsNeeded = minQuestions - questionCount;
+    instruction = `You have asked ${questionCount}/${minQuestions} required questions. You MUST ask ${questionsNeeded} more question(s) before proceeding to research.
+
+Ask ONE clear question about FUNCTIONAL requirements:
+- For ${phase === "initial_design" ? "NEW DESIGN" : "FOLLOW-UP"}: focus on ${phase === "initial_design" ? "core features, users, scale, use cases, special requirements" : "what specifically needs to change"}
+- Make the question SPECIFIC to their request
+- DO NOT proceed to research until you've asked at least ${minQuestions} questions`;
+  } else {
+    // Between min and max: agent's choice
+    instruction = `You have asked ${questionCount} questions (${minQuestions} minimum required, ${maxQuestions} maximum). You can either:
+1. Ask ONE more relevant question about functional requirements (max ${maxQuestions} total)
 2. OR proceed to request research if you have enough information
 
 Use your judgment - if the user's answers give you enough context, proceed to research_needed. If you need more clarity on features, ask ONE more question.`;
-  } else {
-    // First message - MUST ask at least 1 question (mandatory)
-    instruction = `This is a NEW project request. You MUST ask at least ONE relevant question about FUNCTIONAL REQUIREMENTS before proceeding.
-
-Ask ONE clear question about what the user wants to build. Focus on:
-- Core features they need
-- Who will use the system
-- Key use cases or workflows
-
-Make the question SPECIFIC to their request (e.g., for a "chat app" ask about messaging features, for "e-commerce" ask about product types).
-DO NOT skip to research without asking at least one question.`;
   }
 
   const prompt = `## CONVERSATION HISTORY
@@ -181,7 +178,8 @@ Remember: You MUST respond with valid JSON in one of the specified formats (ques
 export async function processUserAnswer(
   questionId: string,
   answer: string | string[],
-  context: ConversationContext
+  context: ConversationContext,
+  phase: "initial_design" | "follow_up" = "initial_design"
 ): Promise<AgentBResponse> {
   const answerText = Array.isArray(answer) ? answer.join(", ") : answer;
   
@@ -195,13 +193,15 @@ export async function processUserAnswer(
 
   return orchestrate(
     `My answer: ${answerText}`,
-    updatedContext
+    updatedContext,
+    phase
   );
 }
 
 export async function processResearchResults(
   researchResults: AgentAResearchResult[],
-  context: ConversationContext
+  context: ConversationContext,
+  phase: "initial_design" | "follow_up" = "initial_design"
 ): Promise<AgentBResponse> {
   const updatedContext: ConversationContext = {
     ...context,
@@ -213,16 +213,19 @@ export async function processResearchResults(
 
   return orchestrate(
     "Research completed. Generate the architectural plan now using the research data.",
-    updatedContext
+    updatedContext,
+    phase
   );
 }
 
 export async function requestPlanEdit(
   editRequest: string,
-  context: ConversationContext
+  context: ConversationContext,
+  phase: "initial_design" | "follow_up" = "initial_design"
 ): Promise<AgentBResponse> {
   return orchestrate(
     `Please update the plan with these changes: ${editRequest}`,
-    context
+    context,
+    phase
   );
 }

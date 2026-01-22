@@ -4,7 +4,7 @@ import { motion } from "framer-motion";
 import { VscGistSecret } from "react-icons/vsc";
 import { HiOutlineUser } from "react-icons/hi";
 import { RiRobot2Line } from "react-icons/ri";
-import type { Message } from "@/app/lib/schemas";
+import type { Message } from "@/app/lib/schemas/message";
 
 interface MessageBubbleProps {
     message: Message;
@@ -29,7 +29,6 @@ export function MessageBubble({ message }: MessageBubbleProps) {
     }
 
     if (message.type === "system") {
-        // Skip empty system messages (used for hiding thinking indicators)
         if (!message.content || message.content.trim() === "") {
             return null;
         }
