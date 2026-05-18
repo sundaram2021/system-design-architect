@@ -76,55 +76,6 @@ function countQuestionsInConversation(messages: Message[]): number {
   return relevantMessages.filter(m => m.type === "question").length;
 }
 
-function buildFallbackPlan(userMessage: string) {
-  return {
-    type: "plan" as const,
-    data: {
-      title: "System Architecture",
-      summary: `A scalable architecture for: ${userMessage}`,
-      components: [
-        {
-          id: "comp_1",
-          name: "Client Application",
-          type: "frontend" as const,
-          description: "User-facing interface",
-          technologies: ["React", "TypeScript"],
-          connections: ["comp_2"]
-        },
-        {
-          id: "comp_2",
-          name: "API Gateway",
-          type: "gateway" as const,
-          description: "Entry point for client requests",
-          technologies: ["Express", "Node.js"],
-          connections: ["comp_3"]
-        },
-        {
-          id: "comp_3",
-          name: "Application Server",
-          type: "backend" as const,
-          description: "Core business logic",
-          technologies: ["Node.js", "PostgreSQL"],
-          connections: ["comp_4"]
-        },
-        {
-          id: "comp_4",
-          name: "Database",
-          type: "database" as const,
-          description: "Primary data store",
-          technologies: ["PostgreSQL"],
-          connections: []
-        }
-      ],
-      dataFlow: [
-        { from: "comp_1", to: "comp_2", description: "HTTPS" },
-        { from: "comp_2", to: "comp_3", description: "REST" },
-        { from: "comp_3", to: "comp_4", description: "SQL" }
-      ]
-    }
-  };
-}
-
 export async function orchestrate(
   userMessage: string,
   context: ConversationContext,
@@ -189,13 +140,35 @@ Remember: You MUST respond with valid JSON. Valid response types: ${validFormats
     { temperature: 0.7 }
   );
 
-  let parsed;
-  try {
-    parsed = JSON.parse(response);
-  } catch {
-    if (hasResearch) {
-      return buildFallbackPlan(userMessage);
+  const attemptWithFallback = async (attemptType: "parse" | "schema"): Promise<AgentBResponse> => {
+    try {
+      const retryPrompt = hasResearch
+        ? `## CRITICAL: Your previous response was invalid (${attemptType === "parse" ? "not valid JSON" : "wrong structure"}). Generate a VALID architectural plan NOW using the research data. Respond ONLY with valid JSON in the plan format.`
+        : `## CRITICAL: Your previous response was invalid (${attemptType === "parse" ? "not valid JSON" : "wrong structure"}). ${researchExhausted ? "You MUST generate a plan now." : "Respond with valid JSON in one of the valid formats."}`;
+
+      const retryResponse = await generateWithGemini(
+        AGENT_B_SYSTEM_PROMPT,
+        prompt + `\n\n${retryPrompt}`,
+        { temperature: 0.7 }
+      );
+
+      const retryParsed = JSON.parse(retryResponse);
+      const retryValidated = AgentBResponseSchema.safeParse(retryParsed);
+      if (retryValidated.success) {
+        return retryValidated.data;
+      }
+    } catch {
+      // retry also failed, fall through to error
     }
+
+    // if we have research, the model is clearly stuck — return an error message
+    if (hasResearch || researchExhausted) {
+      return {
+        type: "thinking",
+        data: { status: "The model is having trouble generating a valid plan. Please try rephrasing your request." }
+      };
+    }
+
     return {
       type: "research_needed",
       data: {
@@ -204,23 +177,20 @@ Remember: You MUST respond with valid JSON. Valid response types: ${validFormats
         purpose: "technology_selection"
       }
     };
+  };
+
+  let parsed;
+  try {
+    parsed = JSON.parse(response);
+  } catch {
+    return attemptWithFallback("parse");
   }
 
   const validated = AgentBResponseSchema.safeParse(parsed);
 
   if (!validated.success) {
     console.error("Agent-B response validation failed:", validated.error);
-    if (hasResearch) {
-      return buildFallbackPlan(userMessage);
-    }
-    return {
-      type: "research_needed",
-      data: {
-        query: `best architecture patterns for ${userMessage}`,
-        context: userMessage,
-        purpose: "architecture_patterns"
-      }
-    };
+    return attemptWithFallback("schema");
   }
 
   return validated.data;
