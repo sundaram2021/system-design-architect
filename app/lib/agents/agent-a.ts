@@ -1,5 +1,5 @@
 import { searchAndSummarize } from "../services/exa-service";
-import { generateWithGemini } from "../services/gemini-service";
+import { generateWithGemini } from "../services/ai-service";
 import { AGENT_A_SUMMARY_PROMPT } from "./prompts";
 import { AgentAResearchResultSchema, type AgentAResearchResult } from "../schemas/agent-responses";
 

@@ -59,11 +59,19 @@ export const AgentBThinkingResponseSchema = z.object({
   })
 });
 
+export const AgentBOutOfScopeResponseSchema = z.object({
+  type: z.literal("out_of_scope"),
+  data: z.object({
+    message: z.string()
+  })
+});
+
 export const AgentBResponseSchema = z.discriminatedUnion("type", [
   AgentBQuestionResponseSchema,
   AgentBResearchRequestSchema,
   AgentBPlanResponseSchema,
-  AgentBThinkingResponseSchema
+  AgentBThinkingResponseSchema,
+  AgentBOutOfScopeResponseSchema
 ]);
 
 export const AgentCCanvasResponseSchema = z.object({

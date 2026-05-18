@@ -1,4 +1,4 @@
-import { generateWithGroq } from "../services/groq-service";
+import { generateWithValidator } from "../services/ai-service";
 import { AGENT_D_SYSTEM_PROMPT } from "./prompts";
 import { AgentDReviewResponseSchema, type AgentDReviewResponse } from "../schemas/agent-responses";
 import type { Plan } from "../schemas/message";
@@ -25,7 +25,7 @@ ${plan.components.map((c) => `
 ${plan.dataFlow.map((f) => `- ${f.from} -> ${f.to} (${f.description})`).join("\n")}
 `;
 
-  const response = await generateWithGroq(
+  const response = await generateWithValidator(
     AGENT_D_SYSTEM_PROMPT,
     planDescription,
     { temperature: 0.1 } // Low temperature for consistent, strict analysis

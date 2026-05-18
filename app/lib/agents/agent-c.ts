@@ -1,4 +1,4 @@
-import { generateWithGemini } from "../services/gemini-service";
+import { generateWithGemini } from "../services/ai-service";
 import { AGENT_C_SYSTEM_PROMPT } from "./prompts";
 import { AgentCCanvasResponseSchema } from "../schemas/agent-responses";
 import type { Plan } from "../schemas/message";
