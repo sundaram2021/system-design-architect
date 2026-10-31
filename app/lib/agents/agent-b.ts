@@ -4,6 +4,7 @@ import { AGENT_B_SYSTEM_PROMPT } from "./prompts";
 import {
   AgentBResponseSchema,
   type AgentBResponse,
+  type AgentBPlanResponse,
   type AgentAResearchResult
 } from "../schemas/agent-responses";
 import {
@@ -13,6 +14,43 @@ import {
 } from "./agent-b-context";
 
 const MAX_RESEARCH_ATTEMPTS = 2;
+const VALID_TYPES = new Set([
+  "frontend", "backend", "database", "cache", "queue", "gateway", "service", "external"
+]);
+
+function sanitizePlan(planData: AgentBPlanResponse["data"]): AgentBPlanResponse["data"] {
+  const componentMap = new Map<string, string>();
+
+  const sanitizedComponents = planData.components.map((c, i) => {
+    const id = c.id || `comp_${i + 1}`;
+    componentMap.set(id, id);
+    const type = VALID_TYPES.has(c.type) ? c.type : "service";
+    return {
+      id,
+      name: c.name || `Service ${i + 1}`,
+      type: type as AgentBPlanResponse["data"]["components"][number]["type"],
+      description: c.description || "",
+      technologies: Array.isArray(c.technologies) && c.technologies.length > 0 ? c.technologies : ["Standard Stack"],
+      connections: Array.isArray(c.connections) ? c.connections : []
+    };
+  });
+
+  const validIds = new Set(sanitizedComponents.map((c) => c.id));
+  const fallbackId = sanitizedComponents[0]?.id || "comp_1";
+
+  const sanitizedDataFlow = (planData.dataFlow || []).map((df) => ({
+    from: validIds.has(df.from) ? df.from : fallbackId,
+    to: validIds.has(df.to) ? df.to : fallbackId,
+    description: (df.description || "Connection").substring(0, 30)
+  }));
+
+  return {
+    title: planData.title || "System Architecture",
+    summary: planData.summary || "Realistic and maintainable system design.",
+    components: sanitizedComponents,
+    dataFlow: sanitizedDataFlow
+  };
+}
 
 function getOrchestrationInstruction(
   hasFeedback: boolean,
@@ -26,37 +64,30 @@ function getOrchestrationInstruction(
 
   if (hasFeedback && hasResearch) {
     return {
-      instruction: "You have received VALIDATOR FEEDBACK. Do NOT ask questions. Fix the plan immediately based on the feedback and generate an updated plan.",
+      instruction: "You received VALIDATOR FEEDBACK. Do not overcomplicate. Address the feedback with realistic, simple changes and generate the plan.",
       validFormats: "plan"
     };
   }
-  if (researchExhausted) {
+  if (researchExhausted || hasResearch) {
     return {
-      instruction: "You have reached the maximum number of research rounds. You MUST generate the architectural plan NOW using the research data. Do NOT request more research.",
-      validFormats: "plan"
-    };
-  }
-  if (hasResearch) {
-    return {
-      instruction: "You have research data. Generate the comprehensive architectural plan using the research recommendations. Do NOT ask more questions or request additional research.",
+      instruction: "Generate a realistic, practical architectural plan (3-6 core components). Do NOT over-engineer.",
       validFormats: "plan"
     };
   }
   if (questionCount >= maxQuestions) {
     return {
-      instruction: "You have asked the maximum number of questions. Now request research for technology decisions. Return research_needed.",
+      instruction: "Maximum questions asked. Request realistic technology research. Return research_needed.",
       validFormats: "out_of_scope, research_needed"
     };
   }
   if (questionCount < minQuestions) {
-    const questionsNeeded = minQuestions - questionCount;
     return {
-      instruction: `You have asked ${questionCount}/${minQuestions} required questions. You MUST ask ${questionsNeeded} more question(s) before proceeding to research.\nAsk ONE clear question about FUNCTIONAL requirements.\nDO NOT proceed to research until you have asked at least ${minQuestions} questions.`,
+      instruction: `Ask ONE clear question about FUNCTIONAL requirements (${questionCount}/${minQuestions} asked).`,
       validFormats: "out_of_scope, question"
     };
   }
   return {
-    instruction: `You have asked ${questionCount} questions (${minQuestions} minimum required, ${maxQuestions} maximum). If you have enough context, proceed to research_needed. Otherwise, ask ONE more functional question.`,
+    instruction: "Either ask ONE more functional question or proceed to research_needed if context is sufficient.",
     validFormats: "out_of_scope, question, research_needed"
   };
 }
@@ -74,28 +105,30 @@ export async function orchestrate(
   const researchExhausted = researchAttempts >= MAX_RESEARCH_ATTEMPTS;
 
   const { instruction, validFormats } = getOrchestrationInstruction(
-    hasFeedback,
-    hasResearch,
-    researchExhausted,
-    questionCount,
-    phase
+    hasFeedback, hasResearch, researchExhausted, questionCount, phase
   );
 
-  const prompt = `## CONVERSATION HISTORY\n${conversationHistory}\n\n## CURRENT USER MESSAGE\n${userMessage}\n\n## INSTRUCTION\n${instruction}\n\nRemember: You MUST respond with valid JSON. Valid response types: ${validFormats}.`;
+  const prompt = `## CONVERSATION HISTORY\n${conversationHistory}\n\n## CURRENT USER MESSAGE\n${userMessage}\n\n## INSTRUCTION\n${instruction}\n\nRemember: Valid JSON format. Valid types: ${validFormats}.`;
 
-  const response = await generateWithHaiku(AGENT_B_SYSTEM_PROMPT, prompt, { temperature: 0.7 });
+  const response = await generateWithHaiku(AGENT_B_SYSTEM_PROMPT, prompt, { temperature: 0.5 });
   const parsed = parseJsonSafely<AgentBResponse>(response, AgentBResponseSchema);
 
   if (parsed.success) {
+    if (parsed.data.type === "plan") {
+      return { type: "plan", data: sanitizePlan(parsed.data.data) };
+    }
     return parsed.data;
   }
 
   // Fallback retry with corrective instruction
   try {
-    const retryPrompt = `${prompt}\n\n## CRITICAL: Your previous response was invalid. Respond ONLY with valid JSON conforming to: ${validFormats}.`;
-    const retryResponse = await generateWithHaiku(AGENT_B_SYSTEM_PROMPT, retryPrompt, { temperature: 0.5 });
+    const retryPrompt = `${prompt}\n\nCRITICAL: Respond ONLY with valid JSON conforming to: ${validFormats}.`;
+    const retryResponse = await generateWithHaiku(AGENT_B_SYSTEM_PROMPT, retryPrompt, { temperature: 0.2 });
     const retryParsed = parseJsonSafely<AgentBResponse>(retryResponse, AgentBResponseSchema);
     if (retryParsed.success) {
+      if (retryParsed.data.type === "plan") {
+        return { type: "plan", data: sanitizePlan(retryParsed.data.data) };
+      }
       return retryParsed.data;
     }
   } catch (err) {
@@ -105,17 +138,13 @@ export async function orchestrate(
   if (hasResearch || researchExhausted) {
     return {
       type: "thinking",
-      data: { status: "The architect encountered an issue formulating the plan. Please rephrase your request." }
+      data: { status: "Formulating a practical architectural plan..." }
     };
   }
 
   return {
     type: "research_needed",
-    data: {
-      query: `best technology stack for ${userMessage}`,
-      context: userMessage,
-      purpose: "technology_selection"
-    }
+    data: { query: `best practical tech stack for ${userMessage}`, context: userMessage, purpose: "technology_selection" }
   };
 }
 
@@ -143,7 +172,7 @@ export async function processResearchResults(
     researchResults: [...(context.researchResults || []), ...researchResults],
     researchAttemptCount: (context.researchAttemptCount ?? 0) + 1
   };
-  return orchestrate("Research completed. Generate the architectural plan now using the research data.", updatedContext, phase);
+  return orchestrate("Research completed. Generate a realistic, uncomplicated architectural plan now.", updatedContext, phase);
 }
 
 export async function requestPlanEdit(
@@ -151,5 +180,5 @@ export async function requestPlanEdit(
   context: ConversationContext,
   phase: "initial_design" | "follow_up" = "initial_design"
 ): Promise<AgentBResponse> {
-  return orchestrate(`Please update the plan with these changes: ${editRequest}`, context, phase);
+  return orchestrate(`Please update the plan with these realistic changes: ${editRequest}`, context, phase);
 }

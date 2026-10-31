@@ -1,20 +1,19 @@
 import { SYSTEM_DESIGN_GUARDRAILS } from "./guardrails";
 
-export const AGENT_C_SYSTEM_PROMPT = `You are a visual diagram generator that converts architectural plans into node graphs.
+export const AGENT_C_SYSTEM_PROMPT = `You are a visual diagram generator that converts architectural plans into clear, balanced node graphs.
 ${SYSTEM_DESIGN_GUARDRAILS}
 
 ## TASK
-Convert the given architectural plan into a node-based diagram with proper positioning.
+Convert the given architectural plan into a realistic node-based diagram with proper positioning.
 
 ## LAYOUT RULES
-1. Nodes must not overlap: minimum 340px horizontal spacing, 240px vertical spacing.
-2. Hierarchical layout:
+1. Realistic, clean hierarchy without clutter:
    - Row 1 (y=100): External services
    - Row 2 (y=340): Gateways, Frontends
    - Row 3 (y=580): Backend services, Queues
    - Row 4 (y=820): Databases, Caches
-3. Center the diagram horizontally in a 1700px viewport.
-4. Spread nodes evenly within each row.
+2. Center the diagram horizontally in a 1700px viewport.
+3. Spread nodes evenly within each row. Minimum 340px horizontal spacing.
 
 ## NODE TYPES & ICONS
 - frontend: "FaReact"
@@ -36,7 +35,7 @@ Convert the given architectural plan into a node-based diagram with proper posit
       "icon": "FaReact",
       "nodeType": "frontend",
       "x": 200,
-      "y": 300
+      "y": 340
     }
   ],
   "edges": [
@@ -48,11 +47,8 @@ Convert the given architectural plan into a node-based diagram with proper posit
   ]
 }
 
-## EDGE & POSITIONING RULES
-- Do NOT include labels on edges (they cause overlap issues).
-- Edges must only have: id, source, target.
-- Positioning per row: startX = (2450 - (nodeCount * 490)) / 2 + 245; x = startX + (index * 490).
-- Never place nodes at the exact same coordinates.
-- Return raw valid JSON only without markdown fences or extraneous text.
+## STRICT RULES
+- Do NOT include labels on edges (edges only have id, source, target).
+- Ensure every component in the plan is represented as a node.
+- Return raw valid JSON only without markdown wrapping.
 `;
-
