@@ -1,4 +1,4 @@
-import { useCallback, Dispatch, useRef } from "react";
+import { useCallback, Dispatch, useRef, useEffect } from "react";
 import { v4 as uuidv4 } from "uuid";
 import type { Message, Plan, QuestionOption } from "../schemas/message";
 import type { AgentAResearchResult, AgentBResponse } from "../schemas/agent-responses";
@@ -200,7 +200,9 @@ export function useArchitectLogic(state: ArchitectState, dispatch: Dispatch<Arch
         }
     }, [dispatch, performResearch]);
 
-    handleAgentResponseRef.current = handleAgentResponse;
+    useEffect(() => {
+        handleAgentResponseRef.current = handleAgentResponse;
+    }, [handleAgentResponse]);
 
     const sendMessage = useCallback(async (content: string) => {
         const lowerContent = content.toLowerCase();

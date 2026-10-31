@@ -43,12 +43,13 @@ export async function searchExa(
 
 export async function searchAndSummarize(
   query: string,
-  context: string
+  context?: string
 ): Promise<{
   sources: { title: string; url: string; snippet: string }[];
   rawResults: ExaSearchResult[];
 }> {
-  const results = await searchExa(query, { numResults: 5 });
+  const searchQuery = context ? `${query} in context of ${context}` : query;
+  const results = await searchExa(searchQuery, { numResults: 5 });
   
   const sources = results.map((r) => ({
     title: r.title,

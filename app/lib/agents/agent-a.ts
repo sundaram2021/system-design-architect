@@ -1,7 +1,13 @@
 import { searchAndSummarize } from "../services/exa-service";
-import { generateWithGemini } from "../services/ai-service";
+import { generateWithHaiku } from "../services/ai-service";
+import { parseJsonSafely } from "../services/json-parser";
 import { AGENT_A_SUMMARY_PROMPT } from "./prompts";
-import { AgentAResearchResultSchema, type AgentAResearchResult } from "../schemas/agent-responses";
+import type { AgentAResearchResult } from "../schemas/agent-responses";
+
+interface AgentASummaryResponse {
+  summary?: string;
+  recommendation?: string;
+}
 
 export async function performResearch(
   query: string,
@@ -21,25 +27,18 @@ ${combinedText}
 
 Analyze these results and provide a summary and recommendation.`;
 
-  const summaryResponse = await generateWithGemini(
+  const summaryResponse = await generateWithHaiku(
     AGENT_A_SUMMARY_PROMPT,
     summaryPrompt,
     { temperature: 0.3 }
   );
 
-  let parsed;
-  try {
-    parsed = JSON.parse(summaryResponse);
-  } catch {
-    parsed = {
-      summary: "Unable to parse research summary.",
-      recommendation: "Please review the sources directly."
-    };
-  }
+  const parsed = parseJsonSafely<AgentASummaryResponse>(summaryResponse);
+  const data = parsed.success ? parsed.data : {};
 
   return {
     sources,
-    summary: parsed.summary || "No summary available.",
-    recommendation: parsed.recommendation || "No recommendation available."
+    summary: data.summary || "No summary available.",
+    recommendation: data.recommendation || "No recommendation available."
   };
 }

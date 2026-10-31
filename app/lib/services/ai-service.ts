@@ -1,55 +1,68 @@
-import { generateText } from "ai";
+import { z } from "zod";
+import {
+  generateAnthropicText,
+  DEFAULT_ANTHROPIC_MODEL,
+  type AnthropicGenerateOptions
+} from "./anthropic-client";
+import { parseJsonSafely } from "./json-parser";
 
-const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+/**
+ * Standard text generation powered by Anthropic claude-haiku-5-5.
+ */
+export async function generateWithHaiku(
+  systemPrompt: string,
+  userPrompt: string,
+  options?: AnthropicGenerateOptions
+): Promise<string> {
+  return generateAnthropicText(systemPrompt, userPrompt, {
+    model: DEFAULT_ANTHROPIC_MODEL,
+    temperature: options?.temperature ?? 0.7,
+    maxTokens: options?.maxTokens ?? 4096,
+    ...options
+  });
+}
 
+/**
+ * Structured JSON generation powered by Anthropic claude-haiku-5-5 with safe extraction.
+ */
+export async function generateJsonWithHaiku<T>(
+  systemPrompt: string,
+  userPrompt: string,
+  schema?: z.ZodType<T>,
+  options?: AnthropicGenerateOptions
+): Promise<T> {
+  const rawText = await generateWithHaiku(systemPrompt, userPrompt, options);
+  const result = parseJsonSafely<T>(rawText, schema);
+
+  if (!result.success) {
+    throw new Error(`Failed to parse structured model response: ${result.error}`);
+  }
+
+  return result.data;
+}
+
+/**
+ * Backward compatibility: Aliased to Claude Haiku 5.5
+ */
 export async function generateWithGemini(
   systemPrompt: string,
   userPrompt: string,
-  options?: {
-    temperature?: number;
-    maxTokens?: number;
-  }
+  options?: AnthropicGenerateOptions
 ): Promise<string> {
-  const maxRetries = 3;
-  let lastError: Error | null = null;
-
-  for (let attempt = 0; attempt < maxRetries; attempt++) {
-    try {
-      const { text } = await generateText({
-        model: "google/gemini-2.0-flash",
-        system: systemPrompt,
-        prompt: userPrompt,
-        temperature: options?.temperature ?? 0.7,
-        maxOutputTokens: options?.maxTokens ?? 8192,
-      });
-      return text;
-    } catch (error) {
-      lastError = error as Error;
-      console.warn(`Gemini API attempt ${attempt + 1} failed:`, error);
-      if (attempt < maxRetries - 1) {
-        await sleep(Math.pow(2, attempt) * 1000);
-      }
-    }
-  }
-
-  throw lastError || new Error("Gemini API failed after retries");
+  return generateWithHaiku(systemPrompt, userPrompt, options);
 }
 
+/**
+ * Backward compatibility: Aliased to Claude Haiku 5.5 for validator agent
+ */
 export async function generateWithValidator(
   systemPrompt: string,
   userPrompt: string,
-  options?: {
-    temperature?: number;
-    maxTokens?: number;
-  }
+  options?: AnthropicGenerateOptions
 ): Promise<string> {
-  const { text } = await generateText({
-    model: "deepseek/deepseek-v4-flash",
-    system: systemPrompt,
-    prompt: userPrompt,
+  return generateWithHaiku(systemPrompt, userPrompt, {
     temperature: options?.temperature ?? 0.1,
-    maxOutputTokens: options?.maxTokens ?? 4096,
+    maxTokens: options?.maxTokens ?? 4096,
+    ...options
   });
-
-  return text;
 }
