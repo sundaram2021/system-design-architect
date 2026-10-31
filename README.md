@@ -3,6 +3,8 @@
 An intelligent multi-agent system that designs system architectures through conversation. Describe your project requirements, and AI agents collaborate to research, validate, and generate a visual architecture diagram.
 
 [![Demo](https://img.shields.io/badge/Watch%20Demo-Loom-625DF5)](https://www.loom.com/share/2a933a20458d4ff9a21944f3443e6653)
+<img width="1379" height="871" alt="governed-internal-employee-assistant-(self-hosted,-policy-enforced)" src="https://github.com/user-attachments/assets/a999e989-315f-4023-93cd-fda1a1e2fa43" />
+
 
 ## Features
 
